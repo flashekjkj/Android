@@ -30,7 +30,8 @@ public class NewPageActivity2 extends AppCompatActivity {
     private ListView listViewModule1;
     private ArrayAdapter<String> adapterModule1;
     private SearchView searchView; // 假设你已经有了一个SearchView控件
-
+    private int clickCount = 0;
+    private String itemForDeletion;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -50,6 +51,11 @@ public class NewPageActivity2 extends AppCompatActivity {
             addButton.setOnClickListener(v -> showInputDialog());
         }
         // 添加长按删除功能（只从列表中移除显示）
+        Button viewAllDataButton = findViewById(R.id.btn_view_all_data);
+        if (viewAllDataButton != null) {
+            viewAllDataButton.setOnClickListener(v -> loadAllItemsFromDB());
+        }
+
         listViewModule1.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
@@ -59,6 +65,23 @@ public class NewPageActivity2 extends AppCompatActivity {
 
                 Toast.makeText(NewPageActivity2.this, "已取消显示: " + itemToRemove, Toast.LENGTH_SHORT).show();
                 return true;
+            }
+        });
+        listViewModule1.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                if (clickCount == 0) {
+                    itemForDeletion = module1Items.get(position);
+                    Toast.makeText(NewPageActivity2.this, "连续点击两次以删除", Toast.LENGTH_SHORT).show();
+                    clickCount++;
+                } else if (clickCount == 1) {
+                    clickCount++;
+                    Toast.makeText(NewPageActivity2.this, "再次点击以确认删除", Toast.LENGTH_SHORT).show();
+                } else if (clickCount == 2) {
+                    deleteItemFromDB(itemForDeletion);
+                    loadItemsFromDB(); // 更新列表显示
+                    clickCount = 0; // 重置计数器
+                }
             }
         });
 
@@ -118,6 +141,22 @@ public class NewPageActivity2 extends AppCompatActivity {
         }
         adapterModule1.notifyDataSetChanged();
         cursor.close();
+    }
+    private void deleteItemFromDB(String textToDelete) {
+        db.delete(TABLE_NAME, COLUMN_TEXT + "=?", new String[]{textToDelete});
+        Toast.makeText(this, "已从数据库中彻底删除: " + textToDelete, Toast.LENGTH_SHORT).show();
+    }
+
+// 加载数据库中所有数据并显示的方法
+    private void loadAllItemsFromDB() {
+        Cursor cursor = db.query(TABLE_NAME, new String[]{COLUMN_ID, COLUMN_TEXT}, null, null, null, null, null);
+        module1Items.clear();
+        while (cursor.moveToNext()) {
+            module1Items.add(cursor.getString(cursor.getColumnIndex(COLUMN_TEXT)));
+        }
+        adapterModule1.notifyDataSetChanged();
+        cursor.close();
+        Toast.makeText(this, "加载了数据库中的所有数据", Toast.LENGTH_SHORT).show();
     }
 
     class MyDatabaseHelper extends SQLiteOpenHelper {
